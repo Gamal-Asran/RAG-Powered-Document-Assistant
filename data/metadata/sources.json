@@ -1,0 +1,30 @@
+{
+  "corpus_name": "NIST AI Risk Management Corpus",
+  "version": "1.0",
+  "sources": [
+    {
+      "document_id": "nist_ai_rmf_1_0",
+      "file_name": "nist_ai_rmf_1_0.pdf",
+      "title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "source_url": "https://doi.org/10.6028/NIST.AI.100-1",
+      "sha256": "484ecd20766aaf9caa42b2fcd72c76905b85670502217228d41d2ff9499509ac",
+      "expected_pages": 48
+    },
+    {
+      "document_id": "nist_genai_profile",
+      "file_name": "nist_genai_profile.pdf",
+      "title": "Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile",
+      "source_url": "https://doi.org/10.6028/NIST.AI.600-1",
+      "sha256": "4a8462c560dcf0164d5d74bdcf5ecef501690395074264036d02be7cd1f12155",
+      "expected_pages": 64
+    },
+    {
+      "document_id": "nist_ai_rmf_playbook",
+      "file_name": "nist_ai_rmf_playbook.pdf",
+      "title": "NIST AI Risk Management Framework Playbook",
+      "source_url": "https://airc.nist.gov/airmf-resources/playbook/",
+      "sha256": "51e318aed4c4c0425780fe1ee32f6a892d382bb2be522e8af9242bf5d169efeb",
+      "expected_pages": 147
+    }
+  ]
+}
