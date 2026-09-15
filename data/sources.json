@@ -1,0 +1,50 @@
+{
+  "dataset_name": "nist-ai-risk-management-corpus",
+  "dataset_version": "1.0.0",
+  "retrieved_at": "2026-09-15T00:00:00Z",
+  "documents": [
+    {
+      "document_id": "nist_ai_rmf_1_0",
+      "title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "publisher": "National Institute of Standards and Technology",
+      "publication": "NIST AI 100-1",
+      "publication_date": "2023-01",
+      "source_url": "https://nvlpubs.nist.gov/nistpubs/ai/nist.ai.100-1.pdf",
+      "local_path": "raw/nist_ai_rmf_1_0.pdf",
+      "media_type": "application/pdf",
+      "pages": 48,
+      "approx_extracted_words": 15689,
+      "ocr_required": false,
+      "sha256": "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1"
+    },
+    {
+      "document_id": "nist_genai_profile",
+      "title": "Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile",
+      "publisher": "National Institute of Standards and Technology",
+      "publication": "NIST AI 600-1",
+      "publication_date": "2024-07",
+      "source_url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf",
+      "local_path": "raw/nist_genai_profile.pdf",
+      "media_type": "application/pdf",
+      "pages": 64,
+      "approx_extracted_words": 20976,
+      "ocr_required": false,
+      "sha256": "6e73620ab6b64e90ef2c04bf0e0d6246185a2f4b1b13cab0df494496cff89b6a"
+    },
+    {
+      "document_id": "nist_ai_rmf_playbook",
+      "title": "NIST AI RMF Playbook",
+      "publisher": "National Institute of Standards and Technology",
+      "publication": "AI RMF Playbook",
+      "publication_date": "2023-03",
+      "source_url": "https://airc.nist.gov/docs/AI_RMF_Playbook.pdf",
+      "local_path": "raw/nist_ai_rmf_playbook.pdf",
+      "media_type": "application/pdf",
+      "pages": 147,
+      "approx_extracted_words": 45024,
+      "ocr_required": false,
+      "sha256": "65d6101d806502875aadb0fd19a75c3a9cc9a5e9461129e9398a39192d8202d2"
+    }
+  ]
+}
+

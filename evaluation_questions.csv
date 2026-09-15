@@ -1,0 +1,13 @@
+question_id,question,expected_document_id,expected_answer_points,answerable
+q01,What are the four core functions of the AI RMF?,nist_ai_rmf_1_0,"Govern; Map; Measure; Manage",true
+q02,Does the AI RMF prescribe a universal risk tolerance?,nist_ai_rmf_1_0,"No; risk tolerance is contextual and organization-specific",true
+q03,What characteristics define trustworthy AI systems in the framework?,nist_ai_rmf_1_0,"Valid and reliable; safe; secure and resilient; accountable and transparent; explainable and interpretable; privacy-enhanced; fair with harmful bias managed",true
+q04,How should the four AI RMF functions be applied over the AI lifecycle?,nist_ai_rmf_1_0,"Continuously; functions are not necessarily sequential; Govern is cross-cutting",true
+q05,What is confabulation in the Generative AI Profile?,nist_genai_profile,"Confidently presented false or erroneous content; commonly called hallucination",true
+q06,Name four major Generative AI risk categories identified by NIST.,nist_genai_profile,"Any four documented risks such as confabulation; data privacy; information integrity; harmful bias or homogenization; information security; intellectual property; environmental impacts",true
+q07,What does NIST recommend for testing a generative AI system before deployment?,nist_genai_profile,"Empirical evaluation under conditions similar to deployment; document methods and limitations; include relevant stakeholders or independent assessment where appropriate",true
+q08,How should an organization handle third-party generative AI models and components?,nist_genai_profile,"Identify dependencies; assess and document risks; monitor third-party components; define roles and incident processes",true
+q09,Is the AI RMF Playbook intended to be followed as a complete checklist?,nist_ai_rmf_playbook,"No; suggestions are voluntary and organizations select actions appropriate to their context",true
+q10,What post-deployment practices help an organization detect AI system drift?,nist_ai_rmf_playbook,"Monitor performance and trustworthiness; collect stakeholder feedback; perform TEVV or audits; document and respond to incidents and degradation",true
+q11,What monetary penalties does NIST impose for violating the AI RMF?,NONE,"Corpus does not specify penalties; AI RMF is voluntary guidance",false
+q12,Which Ollama model does NIST officially require for AI RMF compliance?,NONE,"No Ollama model is required or specified",false
