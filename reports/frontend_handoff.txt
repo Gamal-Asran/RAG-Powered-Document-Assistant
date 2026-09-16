@@ -108,3 +108,20 @@ KNOWN LIMITATIONS
 - Stored history cannot distinguish a requested-but-empty thinking trace because the backend
   conversation-message schema does not store thinking_enabled.
 - This is not a production chat application.
+
+UI REFINEMENT
+- Replaced the dashboard-like shell with a compact centered assistant layout using a restrained
+  dark neutral palette and blue local-model accent.
+- Added a viewport-balanced empty state, responsive two-column/one-column suggestion grid, and a
+  native Streamlit chat composer anchored near the bottom with reliable Enter submission.
+- Reduced the sidebar to a compact navigation rail: blue New chat action, lightweight conversation
+  rows, secondary delete icons, and health/memory status fixed at the bottom.
+- Added a compact shield-mark header, Local model badge, readable assistant/user message treatment,
+  muted collapsed thinking preview, and compact source disclosures.
+- Added responsive rules for narrow widths, wrapped composer controls, source URL/chunk overflow,
+  visible keyboard focus, and no horizontal page scrolling.
+- Added .streamlit/config.toml for the dark theme, blue accent, minimal toolbar, and disabled usage
+  telemetry. API endpoints, schemas, and conversation behavior were not changed.
+- Visual checks performed with hydrated Firefox screenshots at 1680×860, 1366×768, and 768px wide;
+  all three had no horizontal overflow and suggestion copy was readable. Frontend tests remained
+  12 passed and Streamlit AppTest loaded without exceptions.

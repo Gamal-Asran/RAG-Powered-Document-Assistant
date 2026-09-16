@@ -23,8 +23,10 @@ def _source_card(source: Source) -> None:
           <div class="source-title">{title}</div>
           <div class="source-meta">Page {source.page} · Similarity {source.similarity:.3f}</div>
           <div class="source-preview">“{preview}”</div>
-          <a href="{url}" target="_blank" rel="noopener noreferrer">Open source</a>
-          <div class="source-chunk">Chunk: {chunk_id}</div>
+          <div class="source-footer">
+            <a href="{url}" target="_blank" rel="noopener noreferrer">Open document ↗</a>
+            <span class="source-chunk">{chunk_id}</span>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -33,7 +35,7 @@ def _source_card(source: Source) -> None:
 
 def render_sources(sources: list[Source]) -> None:
     unique_sources = prepare_sources(sources)
-    with st.expander(f"Sources ({len(unique_sources)})", expanded=False):
+    with st.expander(f"Sources · {len(unique_sources)}", expanded=False):
         if not unique_sources:
             st.caption("No sources were returned.")
         for source in unique_sources:
@@ -45,11 +47,14 @@ def render_thinking(message: Message) -> None:
         return
     thinking = message.thinking.strip()
     if not thinking:
-        st.caption("Thinking · No separate thinking trace was returned.")
+        st.markdown('<div class="thinking-unavailable">Thinking trace unavailable</div>', unsafe_allow_html=True)
         return
     preview = thinking[:200].rstrip() + ("…" if len(thinking) > 200 else "")
     st.markdown(
-        f'<div class="thinking-preview"><strong>Thinking</strong><br>{html.escape(preview)}</div>',
+        '<div class="thinking-preview">'
+        '<div class="thinking-label"><span aria-hidden="true">▸</span> Thinking</div>'
+        f'<div class="thinking-copy">{html.escape(preview)}</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
     with st.expander("Show full thinking", expanded=False):
@@ -61,6 +66,11 @@ def render_thinking(message: Message) -> None:
 
 def render_message(message: Message) -> None:
     with st.chat_message(message.role):
+        if message.role == "assistant":
+            st.markdown(
+                '<div class="assistant-label"><span aria-hidden="true">◆</span> Assistant</div>',
+                unsafe_allow_html=True,
+            )
         st.markdown(message.content)
         if message.role == "assistant":
             render_thinking(message)
