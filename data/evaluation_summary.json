@@ -1,0 +1,319 @@
+{
+  "evaluation_timestamp_utc": "2026-09-16T13:39:39.226646+00:00",
+  "corpus_version": "6b2cae7c4a187d60aae15326824374462ac05a4c39f1de9c7d4dd6f184c75b6b",
+  "source_hashes": [
+    {
+      "document_id": "nist_ai_rmf_1_0",
+      "sha256": "484ecd20766aaf9caa42b2fcd72c76905b85670502217228d41d2ff9499509ac"
+    },
+    {
+      "document_id": "nist_genai_profile",
+      "sha256": "4a8462c560dcf0164d5d74bdcf5ecef501690395074264036d02be7cd1f12155"
+    },
+    {
+      "document_id": "nist_ai_rmf_playbook",
+      "sha256": "51e318aed4c4c0425780fe1ee32f6a892d382bb2be522e8af9242bf5d169efeb"
+    }
+  ],
+  "input_hashes": {
+    "/home/gamal/Projects/RAG-Powered-Document-Assistant/data/raw/nist_ai_rmf_1_0.pdf": "484ecd20766aaf9caa42b2fcd72c76905b85670502217228d41d2ff9499509ac",
+    "/home/gamal/Projects/RAG-Powered-Document-Assistant/data/raw/nist_ai_rmf_playbook.pdf": "51e318aed4c4c0425780fe1ee32f6a892d382bb2be522e8af9242bf5d169efeb",
+    "/home/gamal/Projects/RAG-Powered-Document-Assistant/data/raw/nist_genai_profile.pdf": "4a8462c560dcf0164d5d74bdcf5ecef501690395074264036d02be7cd1f12155",
+    "/home/gamal/Projects/RAG-Powered-Document-Assistant/data/evaluation_questions.csv": "6be37af6cf9854ea8020339f7a76b24e262b673ca4e1c5e8c7b8fbbdb71a78f5",
+    "/home/gamal/Projects/RAG-Powered-Document-Assistant/backend/data/vector_store/pipeline_config.json": "4f7fa7dc8c5854cad302dbeaeacc3464345adf7c7ea0586a08047bacc985d0ea"
+  },
+  "model_names": {
+    "embedding": "sentence-transformers/all-MiniLM-L6-v2",
+    "generator": "qwen3:4b",
+    "judge": "qwen3:4b"
+  },
+  "ollama_model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+  "chunk_settings": {
+    "size": 450,
+    "overlap": 80,
+    "page_bounded": true,
+    "embedding_limit": 452,
+    "underlying_limit": 512
+  },
+  "retrieval_settings": {
+    "top_k": 4,
+    "distance": "cosine",
+    "collection_count": 447,
+    "low_similarity_threshold": 0.35
+  },
+  "ollama_settings": {
+    "num_ctx": 4096,
+    "temperature": 0.1,
+    "seed": 42,
+    "num_predict": 2048,
+    "think": true,
+    "stream": false,
+    "input_char_limit": 8000,
+    "generation_char_limit": 5400,
+    "client_version": "0.6.2",
+    "judge_options": {
+      "num_ctx": 4096,
+      "temperature": 0.1,
+      "seed": 42,
+      "num_predict": 1024
+    },
+    "judge_think": false
+  },
+  "metrics": {
+    "hit_at_1": 0.8,
+    "hit_at_4": 0.9,
+    "mean_reciprocal_rank": 0.85,
+    "mean_top_one_similarity": 0.6433619856834412,
+    "mean_fourth_similarity": 0.547448867559433,
+    "hit_at_4_by_document": {
+      "nist_ai_rmf_1_0": 1.0,
+      "nist_ai_rmf_playbook": 1.0,
+      "nist_genai_profile": 0.75
+    },
+    "missed_question_ids": [
+      "q08"
+    ],
+    "mean_correctness": 0.45,
+    "mean_grounding": 0.5,
+    "answerable_mean_correctness": 0.5625,
+    "answerable_mean_grounding": 0.375,
+    "negative_control_mean_correctness": 0.0,
+    "negative_control_mean_grounding": 1.0,
+    "citation_validity_rate": 0.25,
+    "answerable_citation_validity_rate": 0.1,
+    "abstention_accuracy": 0.0,
+    "mean_retrieval_seconds": 0.016885924584130407,
+    "mean_generation_seconds": 193.61216832750083,
+    "scored_questions": 10,
+    "total_questions": 12,
+    "manual_review_count": 11,
+    "manual_review_question_ids": [
+      "q01",
+      "q02",
+      "q03",
+      "q04",
+      "q05",
+      "q06",
+      "q07",
+      "q08",
+      "q10",
+      "q11",
+      "q12"
+    ],
+    "failed_call_question_ids": [
+      "q04",
+      "q08"
+    ],
+    "failed_calls": 2
+  },
+  "source_distribution": {
+    "nist_ai_rmf_1_0": 24,
+    "nist_ai_rmf_playbook": 11,
+    "nist_genai_profile": 13
+  },
+  "pollution_counts": {
+    "divider_or_near_empty": 6,
+    "likely_bibliography": 2,
+    "low_similarity": 0
+  },
+  "retrieval_diagnostics": [
+    {
+      "question_id": "q01",
+      "question": "What are the four core functions of the AI RMF?",
+      "expected_document_id": "nist_ai_rmf_1_0",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 2.0,
+      "top_one_similarity": 0.7634158134460449,
+      "fourth_similarity": 0.5759333968162537,
+      "retrieval_status": "PASS",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q02",
+      "question": "Does the AI RMF prescribe a universal risk tolerance?",
+      "expected_document_id": "nist_ai_rmf_1_0",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 4.0,
+      "top_one_similarity": 0.6476144790649414,
+      "fourth_similarity": 0.6133434772491455,
+      "retrieval_status": "PARTIAL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q03",
+      "question": "What characteristics define trustworthy AI systems in the framework?",
+      "expected_document_id": "nist_ai_rmf_1_0",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 4.0,
+      "top_one_similarity": 0.7381272912025452,
+      "fourth_similarity": 0.6509939432144165,
+      "retrieval_status": "PASS",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q04",
+      "question": "How should the four AI RMF functions be applied over the AI lifecycle?",
+      "expected_document_id": "nist_ai_rmf_1_0",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 2.0,
+      "top_one_similarity": 0.6656935811042786,
+      "fourth_similarity": 0.5540680289268494,
+      "retrieval_status": "PARTIAL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q05",
+      "question": "What is confabulation in the Generative AI Profile?",
+      "expected_document_id": "nist_genai_profile",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 4.0,
+      "top_one_similarity": 0.5314731597900391,
+      "fourth_similarity": 0.43330198526382446,
+      "retrieval_status": "PASS",
+      "duplicate_pages": [
+        "nist_genai_profile:p5 (2 chunks)"
+      ],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q06",
+      "question": "Name four major Generative AI risk categories identified by NIST.",
+      "expected_document_id": "nist_genai_profile",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 2.0,
+      "top_one_similarity": 0.7290372848510742,
+      "fourth_similarity": 0.6195880174636841,
+      "retrieval_status": "PARTIAL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q07",
+      "question": "What does NIST recommend for testing a generative AI system before deployment?",
+      "expected_document_id": "nist_genai_profile",
+      "answerable": true,
+      "hit_at_1": false,
+      "hit_at_4": true,
+      "reciprocal_rank": 0.5,
+      "expected_document_chunks": 3.0,
+      "top_one_similarity": 0.4813907742500305,
+      "fourth_similarity": 0.4576433300971985,
+      "retrieval_status": "PASS",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q08",
+      "question": "How should an organization handle third-party generative AI models and components?",
+      "expected_document_id": "nist_genai_profile",
+      "answerable": true,
+      "hit_at_1": false,
+      "hit_at_4": false,
+      "reciprocal_rank": 0.0,
+      "expected_document_chunks": 0.0,
+      "top_one_similarity": 0.5501677393913269,
+      "fourth_similarity": 0.5217620730400085,
+      "retrieval_status": "MISS",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q09",
+      "question": "Is the AI RMF Playbook intended to be followed as a complete checklist?",
+      "expected_document_id": "nist_ai_rmf_playbook",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 2.0,
+      "top_one_similarity": 0.6522061824798584,
+      "fourth_similarity": 0.5044630765914917,
+      "retrieval_status": "PARTIAL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q10",
+      "question": "What post-deployment practices help an organization detect AI system drift?",
+      "expected_document_id": "nist_ai_rmf_playbook",
+      "answerable": true,
+      "hit_at_1": true,
+      "hit_at_4": true,
+      "reciprocal_rank": 1.0,
+      "expected_document_chunks": 4.0,
+      "top_one_similarity": 0.6744935512542725,
+      "fourth_similarity": 0.5433913469314575,
+      "retrieval_status": "PARTIAL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q11",
+      "question": "What monetary penalties does NIST impose for violating the AI RMF?",
+      "expected_document_id": "",
+      "answerable": false,
+      "hit_at_1": null,
+      "hit_at_4": null,
+      "reciprocal_rank": null,
+      "expected_document_chunks": null,
+      "top_one_similarity": 0.5334373116493225,
+      "fourth_similarity": 0.4685625433921814,
+      "retrieval_status": "NEGATIVE_CONTROL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    },
+    {
+      "question_id": "q12",
+      "question": "Which Ollama model does NIST officially require for AI RMF compliance?",
+      "expected_document_id": "",
+      "answerable": false,
+      "hit_at_1": null,
+      "hit_at_4": null,
+      "reciprocal_rank": null,
+      "expected_document_chunks": null,
+      "top_one_similarity": 0.5391391515731812,
+      "fourth_similarity": 0.5162203311920166,
+      "retrieval_status": "NEGATIVE_CONTROL",
+      "duplicate_pages": [],
+      "all_four_one_page": false
+    }
+  ],
+  "score_denominator_policy": "Means exclude null judge scores; scored_questions reports coverage. Failed questions remain in all tables.",
+  "judge_limitation": "Generator and judge use the same model; scores need independent human review.",
+  "clean_kernel_executions": [
+    {
+      "cwd": "/home/gamal/Projects/RAG-Powered-Document-Assistant",
+      "elapsed_seconds": 2944.170292854309,
+      "source_sha256": "2cd038b48f828343c7d2410da325745c2cc839403ba81c044a6009f3988aa654",
+      "success": true
+    },
+    {
+      "cwd": "/home/gamal/Projects/RAG-Powered-Document-Assistant/notebooks",
+      "elapsed_seconds": 2892.620418548584,
+      "source_sha256": "35af1911d6bc97ee86ab4726ed7e721bfef9e97e747b0dcd28ec6bfe964c9229",
+      "success": true
+    }
+  ]
+}

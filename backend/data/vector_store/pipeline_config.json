@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "collection_name": "nist_ai_risk_corpus",
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_dimension": 384,
+  "embedding_device": "cpu",
+  "embedding_max_seq_length": 452,
+  "normalize_embeddings": true,
+  "distance_metric": "cosine",
+  "chunk_size_tokens": 450,
+  "chunk_overlap_tokens": 80,
+  "token_offsets": "zero-based half-open, per cleaned page, excluding special tokens",
+  "top_k": 4,
+  "ollama_model": "qwen3:4b",
+  "ollama_context_tokens": 4096,
+  "temperature": 0.1,
+  "document_count": 3,
+  "page_count": 259,
+  "chunk_count": 447,
+  "created_at_utc": "2026-09-16T06:33:58.802880+00:00",
+  "sources": [
+    {
+      "document_id": "nist_ai_rmf_1_0",
+      "sha256": "484ecd20766aaf9caa42b2fcd72c76905b85670502217228d41d2ff9499509ac"
+    },
+    {
+      "document_id": "nist_genai_profile",
+      "sha256": "4a8462c560dcf0164d5d74bdcf5ecef501690395074264036d02be7cd1f12155"
+    },
+    {
+      "document_id": "nist_ai_rmf_playbook",
+      "sha256": "51e318aed4c4c0425780fe1ee32f6a892d382bb2be522e8af9242bf5d169efeb"
+    }
+  ],
+  "package_versions": {
+    "chromadb": "1.5.9",
+    "sentence-transformers": "6.0.1",
+    "transformers": "5.17.0",
+    "numpy": "2.5.3",
+    "pypdf": "6.18.1"
+  }
+}
