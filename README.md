@@ -7,6 +7,8 @@ The application retrieves passages from a persisted Chroma index, asks a local
 `qwen3:4b` model to produce a grounded answer, and displays the answer, sources,
 optional thinking, and in-memory conversation history in a Streamlit chat UI.
 No cloud model or external inference API is used.
+![Chat Screenshot](screenshots/chat.png)
+
 
 ## Quick start (existing prepared checkout)
 
