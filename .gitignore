@@ -1,0 +1,46 @@
+# Local environments and secrets
+.venv/
+venv/
+env/
+.env
+**/.env
+.env.*
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Packaging and build output
+build/
+dist/
+*.egg-info/
+
+# Jupyter-generated files
+.ipynb_checkpoints/
+
+# Streamlit local configuration and secrets
+.streamlit/secrets.toml
+
+# Logs and temporary runtime files
+*.log
+*.pid
+*.tmp
+*.swp
+tmp/
+temp/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

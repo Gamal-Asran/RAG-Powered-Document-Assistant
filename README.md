@@ -1,209 +1,220 @@
-# Student Project Guide - RAG-Powered Document Assistant
+# NIST AI Risk Assistant
 
-**Program:** Level 2 Summer Training | Graduation Project
+A local Retrieval-Augmented Generation (RAG) assistant for the NIST AI Risk
+Management Framework, the Generative AI Profile, and the AI RMF Playbook.
 
-| Item | Details |
-|---|---|
-| Work mode | Individual assignment |
-| Submission | Backend source code, database schema, setup instructions, and API documentation |
+The application retrieves passages from a persisted Chroma index, asks a local
+`qwen3:4b` model to produce a grounded answer, and displays the answer, sources,
+optional thinking, and in-memory conversation history in a Streamlit chat UI.
+No cloud model or external inference API is used.
 
-> **Important:** Each student must design and implement the project independently. Shared implementations or copied submissions are not permitted.
+## Quick start (existing prepared checkout)
 
-## Goal
+Use three terminals from the repository root.
 
-Build a complete AI product, from raw documents to a deployed, working RAG (Retrieval-Augmented Generation) web application, and publish it on GitHub.
-
-
-You will:
-
-- Choose any domain and collect a set of source documents (Extended Track: also an image dataset).
-- Build a notebook that cleans and chunks the data, generates embeddings, stores them in a vector database, and builds and evaluates a RAG pipeline using a local Ollama LLM.
-- Build a FastAPI backend that serves the RAG pipeline.
-- Build a frontend (Streamlit or Gradio) where a user asks a question and sees a grounded, cited answer.
-- Publish everything to GitHub with a professional README.
-
-Two tracks are available - see Phase 1 for details. Core Track builds a text-only RAG assistant; Extended Track adds a Computer Vision/YOLO component for teams who want an added multimodal challenge.
-
-## Phase 0 - Prerequisites & Environment Setup
-
-Install and verify each of these before starting:
-
-| Tool | Minimum version | Check with |
-|---|---:|---|
-| Python | 3.10 | `python --version` |
-| Ollama | latest | `ollama --version` |
-| Git | any recent | `git --version` |
-| A GitHub account | - | <https://github.com> |
-
-Create your project folder and a virtual environment:
+### 1. Start Ollama
 
 ```bash
-mkdir rag-assistant-project
-cd rag-assistant-project
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-# source .venv/bin/activate # macOS / Linux
-pip install jupyter pandas numpy chromadb sentence-transformers pypdf ollama python-dotenv
+ollama serve
 ```
 
-## Phase 1 - Domain & Data Collection
+Skip this command if Ollama is already running as a service. Confirm that the
+required model is installed:
 
-### Track Options
+```bash
+ollama list
+ollama show qwen3:4b
+```
 
-- **Core Track** - a text-based RAG assistant (Chat with Documents/PDF).
-- **Extended Track** - the Core Track pipeline enhanced with a Computer Vision/YOLO component (e.g. scanned pages, diagrams, product photos, or detection results feeding into the RAG context) for teams who want a multimodal challenge.
+### 2. Start the backend
 
-### Steps
+```bash
+source .venv/bin/activate
+uvicorn backend.app.main:app --port 8000
+```
 
-- Choose an open domain/topic (study notes, product manuals, legal or medical text, customer support FAQs, etc.) - any domain is fine as long as it produces a meaningful document collection.
-- Collect a set of source documents (PDFs/text) - enough to give the assistant something real to retrieve from.
-- **[Extended]** Also collect a relevant image dataset (scanned pages, diagrams, product photos, etc.).
-- Verify your data yourself - open a few files, check they are text-extractable (not scanned images needing OCR), and note anything messy you'll need to clean.
+Wait for `Application startup complete`, then check:
 
-## Phase 2 - The Notebook: Build & Evaluate the RAG Pipeline
+```bash
+curl http://127.0.0.1:8000/health
+```
 
-Create `notebooks/rag_pipeline.ipynb`. It must contain all of the following sections (use Markdown headers so it reads like a report).
+### 3. Start the frontend
 
-### 2.1 Load & Inspect
+```bash
+source .venv/bin/activate
+streamlit run frontend/app.py --server.port 8501
+```
 
-Write a short Markdown cell answering: how many documents/pages? What formats? Which files failed to parse or need OCR?
+Open **http://localhost:8501** and ask:
 
-### 2.2 Chunking Strategy
+> What are the four core functions of the AI RMF?
 
-- Split documents into chunks (fixed-size with overlap, or a semantic/section-based strategy).
-- Justify your chosen chunk size and overlap in a Markdown cell.
+The first backend startup loads the embedding model and the local vector index,
+so it can take several seconds. Generation is non-streaming and may take a few
+minutes on CPU or modest local hardware.
 
-### 2.3 Embeddings & Vector Store
+## Fresh installation
 
-- Generate embeddings for each chunk.
-- Store embeddings in a vector database (e.g. Chroma or FAISS).
-- Persist the vector store to disk so the backend can load it without rebuilding.
+Prerequisites:
 
-### 2.4 Retrieval & Prompting
+- Python 3.10 or newer
+- Git
+- Ollama
+- Enough memory to run `qwen3:4b`
 
-- Implement a retrieval function and test it against at least 10 sample questions.
-- Build the prompt template that combines the retrieved context with the user's question.
-- Add citation-style grounding - the answer should reference which chunk/document it came from.
+Clone the project and install both application layers into one virtual environment:
 
-### 2.5 Vision Component
+```bash
+git clone <repository-url>
+cd RAG-Powered-Document-Assistant
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt
+pip install -r frontend/requirements.txt
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
 
-- **[Extended]** Run inference with, or fine-tune, a pretrained YOLO/CV model on the image dataset.
-- **[Extended]** Decide how detection/classification output feeds into the RAG prompt context.
+Install the local LLM:
 
-### 2.6 Evaluation
+```bash
+ollama pull qwen3:4b
+```
 
-- Report results for at least 10 test questions: was the retrieved context relevant? Was the answer grounded or hallucinated?
-- Include a small results table (question / retrieved source / answer / correct or not).
-- Write a short paragraph on the main failure cases you observed and how you mitigated them.
+The backend deliberately loads the embedding model in offline-only mode. Cache
+it once on a machine with network access before starting the backend:
 
-### 2.7 Export
+```bash
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+```
 
-Save the persisted vector store (and any config such as chunk size and embedding model name) into a folder your backend will load directly - no rebuilding at request time.
+Then follow the three-terminal quick start above. The three NIST PDFs and the
+persisted 447-chunk Chroma index are included in this repository; rebuilding the
+index is not required for normal use.
 
-## Phase 3 - Backend (FastAPI)
+### Windows activation
 
-Structure your backend as follows:
+PowerShell users can activate the environment with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+The remaining `uvicorn` and `streamlit` commands are the same.
+
+## Architecture
 
 ```text
-backend/
-├── app/
-│   ├── main.py               # FastAPI app, CORS, startup loading
-│   ├── api/routes/query.py   # GET /health, POST /query
-│   ├── core/config.py        # Settings from .env
-│   ├── schemas/query.py      # QueryRequest / QueryResponse
-│   ├── services/
-│   │   ├── retrieval.py      # Load vector store, retrieve chunks
-│   │   └── generation.py     # Call Ollama LLM, build answer
-│   └── utils/logging_config.py
-├── data/vector_store/        # copied from your notebook
-├── tests/test_query.py
-├── requirements.txt
-├── .env.example
-└── Dockerfile
+Browser
+  │
+  ▼
+Streamlit frontend (:8501)
+  │  HTTP/JSON
+  ▼
+FastAPI backend (:8000)
+  ├── MiniLM query embedding (CPU)
+  ├── persisted Chroma index (447 chunks, top 4)
+  ├── in-memory conversation store
+  └── Ollama qwen3:4b (:11434)
 ```
 
-### Steps
+The frontend never imports or connects directly to Ollama, ChromaDB,
+SentenceTransformers, or PyTorch.
 
-- Run `pip install fastapi "uvicorn[standard]" pydantic pydantic-settings ollama chromadb pytest httpx` and freeze into `requirements.txt`.
-- Define `QueryRequest {question: str}` and `QueryResponse {answer: str, sources: list[str]}`.
-- Implement `POST /query` (retrieve -> build prompt -> call LLM -> return grounded answer) and `GET /health`.
-- Load the vector store and LLM connection once at startup (FastAPI lifespan), not on every request.
-- Add CORS middleware allowing your frontend's origin.
-- **[Extended]** Add an endpoint (or an optional field on `/query`) for image-based input, and fuse detection output into the prompt.
-- Write at least 2 tests with `TestClient`: one happy path and one invalid input (expect `422`).
+## Configuration
 
-Run and verify:
+Backend variables are documented in [`backend/.env.example`](backend/.env.example):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Local Ollama service |
+| `OLLAMA_MODEL` | `qwen3:4b` | Generation model |
+| `OLLAMA_CONTEXT` | `4096` | Model context window |
+| `OLLAMA_NUM_PREDICT` | `1024` | Maximum generated tokens |
+| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Query embedding model |
+| `CHROMA_PATH` | `backend/data/vector_store` | Persisted vector index |
+| `RETRIEVAL_TOP_K` | `4` | Sources returned per answer |
+| `MAX_HISTORY_EXCHANGES` | `2` | Recent exchanges added to prompts |
+
+Frontend variables are documented in [`frontend/.env.example`](frontend/.env.example):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `API_BASE_URL` | `http://127.0.0.1:8000` | FastAPI base URL |
+| `QUERY_TIMEOUT_SECONDS` | `300` | Local generation timeout |
+
+Copy the example files to `.env` before customizing them. Real `.env` files are
+ignored by Git.
+
+## API
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Backend, Ollama, embedding, and index status |
+| `POST` | `/query` | Retrieve sources and generate an answer |
+| `GET` | `/conversations` | List in-memory conversations |
+| `GET` | `/conversations/{id}` | Load a complete conversation |
+| `DELETE` | `/conversations/{id}` | Delete a conversation |
+
+Example query:
 
 ```bash
-uvicorn app.main:app --reload
-# Open http://localhost:8000/docs and test /query from Swagger UI
+curl -X POST http://127.0.0.1:8000/query \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "question": "What are the four core functions of the AI RMF?",
+    "conversation_id": null,
+    "thinking_enabled": false
+  }'
 ```
 
-## Phase 4 - Frontend (Streamlit or Gradio)
+Interactive API documentation is available at **http://127.0.0.1:8000/docs**.
 
-Structure your frontend as follows:
+## Testing
+
+Tests use mocks and do not start Ollama or load ML models:
+
+```bash
+source .venv/bin/activate
+python -m pytest backend/tests frontend/tests -q
+```
+
+Run the real backend smoke test only while the backend and Ollama are running:
+
+```bash
+python backend/scripts/smoke_test.py
+```
+
+## Project structure
 
 ```text
-frontend/
-├── app.py                    # main Streamlit/Gradio app
-├── api_client.py             # wrapper for calling the backend API
-├── .env                      # API_BASE_URL=http://localhost:8000
-└── requirements.txt
+backend/                 FastAPI API, RAG services, schemas, and tests
+  app/
+  data/vector_store/     Persisted Chroma collection
+  scripts/smoke_test.py
+frontend/                Streamlit UI, typed API client, and tests
+notebooks/               Source RAG pipeline and evaluation notebook
+data/raw/                Three source NIST PDFs
+data/metadata/           Source manifest
+data/evaluation_*        Saved evaluation questions and results
+reports/                 Notebook, backend, and frontend handoffs
 ```
 
-### Requirements
+## Prototype limitations
 
-- A chat-style interface: text input for questions, response area showing the answer and its cited sources.
-- Read the backend URL from an environment variable - never hard-code it.
-- **[Extended]** Allow an image upload and display detection/classification results alongside the text answer.
-- Show a loading state while the request runs, and a friendly error message if the API fails.
-- Verify the full flow: backend on `8000`, frontend running, ask a real question, see a grounded, cited answer.
+- Responses and thinking are returned only after generation completes; there is
+  no token streaming.
+- One Ollama generation runs at a time.
+- Thinking mode can be substantially slower and may exceed the 300-second
+  frontend timeout.
+- Conversation history is process-local and disappears when the backend restarts.
+- Retrieval uses the current question, with only limited recent history supplied
+  to generation.
+- This assistant summarizes NIST guidance and does not provide legal advice.
+- This is a demonstration prototype, not a production chat application.
 
-## Phase 5 - Publish on GitHub
-
-Create `.gitignore` before your first commit. It must exclude: `.venv/`, `__pycache__/`, `.env`, `*.log`, the raw document corpus if large (explain in the README how to obtain it), and the vector store if large. Small models/artifacts may be committed if under 50 MB.
-
-Initialize and commit:
-
-```bash
-git init
-git add .
-git commit -m "RAG assistant: notebook, FastAPI backend, frontend"
-```
-
-Create a public repository on GitHub, then:
-
-```bash
-git remote add origin https://github.com/<your-username>/rag-assistant-app.git
-git branch -M main
-git push -u origin main
-```
-
-Write a root `README.md`. It must include: overview, architecture diagram, tech stack, project structure, domain/data description, backend and frontend setup steps, environment variables table, API reference with a `curl` example, evaluation results (from Phase 2.6), and screenshots of the running app.
-
-Verify like a stranger: clone your repository into a fresh folder and follow only your README. If any step fails, fix the README.
-
-## Final Presentation
-
-- A live demo delivered in front of the instructors.
-- A recorded video walkthrough of the application.
-
-## Deliverables Checklist
-
-- [ ] `notebooks/rag_pipeline.ipynb` - runs top-to-bottom without errors, with chunking, embeddings, retrieval testing, and an evaluation table.
-- [ ] `backend/` - FastAPI app with `/health` + `/query`, `.env.example`, pinned `requirements.txt`, passing `pytest`.
-- [ ] `frontend/` - working chat interface, `.env.example`.
-- [ ] A persisted vector store, produced by the notebook and served by the backend.
-- [ ] Root `README.md` good enough for a stranger to run the whole project.
-- [ ] Public GitHub repository with a clean history (no `.venv`, no `.env`, no raw corpus dump).
-- [ ] End-to-end demo works: question -> API -> retrieval -> LLM -> grounded answer on screen.
-- [ ] Extended Track only: working CV/YOLO component integrated into the pipeline.
-- [ ] Live demo delivered + recorded video submitted.
-
-## Common Mistakes That Lose Points
-
-- Committing `.env`, the raw document corpus, or the vector store when it is large.
-- Hard-coding `http://localhost:8000` in frontend code instead of using an environment variable.
-- An assistant that answers from the LLM's own knowledge instead of the retrieved context - no real grounding.
-- Testing on only 1-2 questions before the live demo.
-- A notebook that only runs in the author's original cell order (`Kernel -> Restart & Run All` should work).
+For implementation and verification details, see
+[`reports/backend_handoff.txt`](reports/backend_handoff.txt) and
+[`reports/frontend_handoff.txt`](reports/frontend_handoff.txt).
