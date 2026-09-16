@@ -91,9 +91,13 @@ def reset_for_missing_conversation() -> None:
 
 def refresh_conversations() -> None:
     try:
-        st.session_state.conversations = sorted(
+        conversations = sorted(
             client.list_conversations(), key=lambda item: item.updated_at, reverse=True
         )
+        st.session_state.conversations = conversations
+        active_id = st.session_state.active_conversation_id
+        if active_id and st.session_state.messages and all(item.id != active_id for item in conversations):
+            reset_for_missing_conversation()
     except BackendUnavailableError:
         st.session_state.backend_available = False
     except (BackendTimeoutError, BackendValidationError, BackendRequestError):
@@ -302,6 +306,10 @@ if submitted and not st.session_state.request_in_progress:
     st.session_state.last_error = None
     requested_thinking = st.session_state.thinking_enabled
     try:
+        # The script has already rendered stored history for this run, so show the
+        # submitted turn immediately while the atomic backend request is pending.
+        with st.chat_message("user"):
+            st.markdown(clean_question)
         with st.status("Working with the local model…", expanded=True) as status:
             st.write("Retrieving sources and generating a grounded answer…")
             response = client.query(

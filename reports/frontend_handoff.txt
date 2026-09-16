@@ -1,0 +1,110 @@
+FRONTEND HANDOFF — NIST AI Risk Assistant
+
+IMPLEMENTATION STATUS
+The Streamlit prototype frontend is implemented against the existing FastAPI schemas and routes.
+It communicates only through the backend HTTP API and contains no direct Ollama, ChromaDB,
+SentenceTransformers, or PyTorch integration.
+
+FILES CREATED
+- frontend/app.py
+- frontend/api_client.py
+- frontend/models.py
+- frontend/components.py
+- frontend/styles.py
+- frontend/requirements.txt
+- frontend/.env.example
+- frontend/tests/__init__.py
+- frontend/tests/test_api_client.py
+- frontend/tests/test_models.py
+- reports/frontend_handoff.txt
+
+RUN COMMANDS
+From the repository root:
+  source .venv/bin/activate
+  uvicorn backend.app.main:app --port 8000
+  streamlit run frontend/app.py --server.port 8501
+
+From frontend/ (with the backend already running):
+  source ../.venv/bin/activate
+  streamlit run app.py --server.port 8501
+
+Install frontend dependencies:
+  .venv/bin/pip install -r frontend/requirements.txt
+
+Run frontend tests:
+  .venv/bin/python -m pytest frontend/tests -q
+
+ENVIRONMENT VARIABLES
+- API_BASE_URL: backend origin; default http://127.0.0.1:8000
+- QUERY_TIMEOUT_SECONDS: non-streaming query timeout; default 300
+Copy frontend/.env.example to frontend/.env for local overrides. The .env file is not committed.
+Health and conversation requests use a separate short five-second timeout.
+
+BACKEND ENDPOINTS USED
+- GET /health
+- POST /query
+- GET /conversations
+- GET /conversations/{conversation_id}
+- DELETE /conversations/{conversation_id}
+
+SESSION-STATE FIELDS
+- active_conversation_id
+- messages
+- thinking_enabled
+- backend_available
+- conversations
+- request_in_progress
+- last_error
+Small UI-only fields also retain the question draft, deferred input clearing, pending deletion,
+and latest parsed health response.
+
+THINKING-TOGGLE BEHAVIOR
+Thinking defaults off and persists between messages and new chats. Each query sends the current
+boolean as thinking_enabled. Disabled responses render no thinking section. Enabled responses
+keep the final answer separate, show an escaped gray preview of about 200 characters, and provide
+a collapsed full-trace expander. If thinking was requested but the trace is empty, the UI says so.
+History responses do not contain a thinking_enabled field, so a stored non-empty thinking value is
+used to decide whether to render the thinking section when reopening a conversation.
+
+CONVERSATION-HISTORY BEHAVIOR
+The sidebar lists backend summaries newest first, uses titles rather than UUIDs, highlights the
+active conversation, and supports selection, new chat, and confirmed deletion. Selecting a chat
+fetches its complete history. New chat preserves the thinking preference. If the active ID is no
+longer present or GET returns 404, local history is cleared and the backend-memory-reset warning
+is shown. A successful query saves the returned ID, refetches complete history, refreshes the
+sidebar, clears input, and rerenders.
+
+SOURCE RENDERING
+Assistant messages include a collapsed Sources (N) section. Cards show title, physical page,
+three-decimal similarity, short backend preview, clickable URL, and muted chunk ID. Duplicate
+chunk IDs are removed defensively while retaining retrieval order. Full chunks are never shown.
+
+ERROR HANDLING
+The API client distinguishes backend unavailability, timeout, invalid request/response data,
+missing conversations, generation failures, and other backend failures. Health may retry once;
+queries never retry automatically. The UI maps failures to short user-safe messages and never
+shows raw stack traces. Typed input remains in the form after failed queries.
+
+TEST RESULTS
+- Frontend mocked suite: 12 passed.
+- Streamlit AppTest load smoke: zero exceptions; expected main and sidebar titles rendered.
+- Live backend health: healthy; Ollama available; qwen3:4b; CPU embeddings; 447 Chroma records.
+- Live thinking-off backend smoke: PASS for query, non-empty answer, exactly four sources, empty
+  thinking, stored/retrieved conversation messages, and deletion.
+- Live thinking-enabled request: generation took 357.263 seconds and exceeded the configured
+  300-second client timeout while the backend continued its documented thinking-budget fallback.
+  No duplicate query was issued. The completed stored exchange was then retrieved: two messages,
+  non-empty answer, non-empty separate thinking, exactly four sources, and successful deletion.
+
+KNOWN LIMITATIONS
+- Backend responses are not streamed.
+- Working status is local UI feedback.
+- Thinking appears only after generation completes.
+- Conversation history disappears when the backend restarts.
+- One local Ollama generation runs at a time.
+- Long thinking responses may be slow and can exceed the 300-second frontend timeout.
+- Timing metadata is available for the just-completed response but is not stored by the backend,
+  so it is unavailable after reopening a conversation.
+- Stored history cannot distinguish a requested-but-empty thinking trace because the backend
+  conversation-message schema does not store thinking_enabled.
+- This is not a production chat application.
