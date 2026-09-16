@@ -1,0 +1,157 @@
+NOTEBOOK PROTOTYPE HANDOFF — RAG-Powered-Document-Assistant
+
+PROJECT STATE
+- Notebook: notebooks/rag_pipeline.ipynb
+- Corpus: 3 NIST PDF documents, 259 physical PDF pages.
+- Source manifest: data/metadata/sources.json; PDFs: data/raw/.
+- Evaluation questions: data/evaluation_questions.csv (12; never indexed).
+- Chunks: 447, page-bounded, 450 WordPiece content tokens / 80-token overlap.
+- Embedding model: sentence-transformers/all-MiniLM-L6-v2, CPU only.
+- Embeddings: 447 x 384, float32, normalized. Original encoding approximately 47 seconds; reruns reuse the persisted vectors and do not rebuild embeddings.
+- SentenceTransformer max_seq_length: 452 (450 + 2 special tokens); underlying positional capacity: 512. The original wrapper default was 256.
+- Chroma path: backend/data/vector_store
+- Collection: nist_ai_risk_corpus; count: 447; distance: cosine; top_k: 4.
+- Runtime config: backend/data/vector_store/pipeline_config.json (preserved).
+- Ollama: local service, qwen3:4b, num_ctx=4096, temperature=0.1, seed=42, non-streaming.
+- Generation output allowance: 2048 tokens; smoke only: 512 tokens, think=False.
+- Generation thinking is caller-configurable. Client 0.6.2 supports structured message.content and message.thinking; no tag-parsing fallback is used.
+- Full judge: same qwen3:4b, think=False, output allowance 1024, strict JSON Schema plus Pydantic validation, one parse retry. No judge calls in smoke/load.
+- Prompt limits: 5400 generation-input characters; 8000 total judge-input characters including schema estimate. Budget uses 3 characters/token plus template allowance. Evidence excerpts may be shortened and are recorded; full chunks remain in detailed results. Prompts were not optimized during freeze.
+- Evaluation artifacts: data/evaluation_results.csv, data/evaluation_results_detailed.json, data/evaluation_summary.json
+- Smoke report: reports/notebook_smoke_test.json
+- Default mode: smoke. Load mode makes no Ollama calls. Full mode is explicit and slow; never use it for routine prototype development.
+
+MODIFICATION HISTORY
+1. Environment and dependency checks established the project environment and package versions.
+2. Manifest/checksum validation checked source identities and PDF page counts.
+3. PDF page extraction retained physical one-based page provenance with PyPDF.
+4. Text-quality validation exposed sparse pages and extraction warnings.
+5. Header/footer cleaning conservatively removed repeated margins while preserving original text.
+6. Page-bounded 450/80 chunking established deterministic IDs and token offsets.
+7. CPU MiniLM embeddings produced 447 normalized 384-dimensional float32 vectors.
+8. Persistent Chroma export stored the corpus and pipeline_config.json. Notebook reruns now reopen and validate these vectors instead of reindexing.
+9. Retrieval function reused the CPU model and cosine Chroma collection, returning four typed chunks with provenance.
+10. Grounded Ollama generation added context formatting, citation instructions, budget checks, timing, and explicit failure recording.
+11. Separate thinking output used structured response fields; generate_answer now accepts an explicit think boolean and keeps answer/thinking separate.
+12. Retrieval/generation evaluation covered all 12 questions, deterministic retrieval/citation/abstention checks, a separate JSON judge, null failed scores, saved artifacts, and measured failure analysis. Raw model judgments and deterministic adjustment reasons are retained.
+13. Smoke/load/full evaluation modes froze the prototype: default smoke makes one short think=False call; load reads saved artifacts only; full generation, judging, and artifact writes require explicit opt-in. Full thinking traces are not printed automatically.
+
+CURRENT EVALUATION STATUS — SAVED HISTORICAL RUN, NOT A NEW EVALUATION
+Evaluation timestamp (UTC): 2026-09-16T13:39:39.226646+00:00
+- Retrieval Hit@1: 0.80
+- Retrieval Hit@4: 0.90
+- Mean reciprocal rank: 0.85
+- Correctness average over scored questions: 0.45 (10/12 scored)
+- Grounding average over scored questions: 0.50 (10/12 scored)
+- Citation-validity rate: 0.25 overall; 0.10 for answerable questions.
+- Abstention accuracy: 0.00 (0/2 negative controls).
+- Failed generation question IDs: q04, q08.
+- Manual-review question IDs: q01, q02, q03, q04, q05, q06, q07, q08, q10, q11, q12.
+- Missing/null correctness scores: 2; missing/null grounding scores: 2.
+- Mean retrieval latency: 0.016886 seconds; mean generation latency: 193.612 seconds.
+Failed generations remain null, not zero. Means exclude null scores. Zero correctness for failed exact abstention is the existing deterministic specification, not an imputed generation-failure score.
+
+Artifact selection: the existing project files are newer, complete, mutually consistent, and include all 12 IDs, both real generation errors, both negative-control failures, and all 10 available judged cases. The older temporary snapshot was inspected but not selected or merged. Its final-answer strings match; its earlier judge policy produced different aggregate scores. The latest artifacts retain original model judgments and documented deterministic adjustments. No existing score was recalculated or changed during this freeze.
+- data/evaluation_results.csv: SHA-256 9e1effbfdc60839dc89d22d33fad9a80380b56f19d329f99d6b75c034a463ad1; modified 2026-09-16T13:39:39.236927+00:00
+- data/evaluation_results_detailed.json: SHA-256 60ffa740e4ff62ff4640e26f4a10c83af58d5258833865c7402af9c3924420b0; modified 2026-09-16T13:39:39.245927+00:00
+- data/evaluation_summary.json: SHA-256 9668f4e77405fca9f2d8d76d32c0de7eb1a43c529fffe3fb7aea8a5a256530ed; modified 2026-09-16T13:39:41.978645+00:00
+
+KNOWN LIMITATIONS
+- q04 and q08 used the generation output budget without a final answer; their errors, thinking, and null scores are preserved. Do not retry them automatically.
+- q08 is a document-level retrieval miss: AI RMF and Playbook chunks outranked the expected GenAI Profile. Similarities around 0.52–0.55 do not guarantee the right document or passage.
+- q11 and q12 appended explanatory content to the abstention sentence, failing exact abstention. These failures remain even where the model judge was permissive.
+- Retrieval pollution: 6 divider/near-empty results and 2 likely bibliography results among 48. Flags are explicit heuristics, not a filtering rule. No chunks were deleted.
+- Strict citation formatting fails for some answers that add a literal chunk_id label. Historical citation scores are preserved; the smoke test checks source membership, not overall answer quality.
+- Answerable questions q06 and q07 abstained. Saved prompt excerpts were shortened in 24/48 blocks to meet the context/output budget; full retrieved text is retained for review.
+- Fourteen of 48 retrieved chunks exceed the original wrapper's 254-content-token allowance. The override to 452 avoids truncating 450-token embeddings within the underlying 512 limit; no shorter-window ablation established a quality gain or loss.
+- Generator and judge use the same model. Some judge coverage/reasoning was inconsistent. Deterministic guards handle exact abstention and invalid citations after successful JSON validation; original judge output is retained. These scores are not independent human validation.
+- This is a prototype, not a production-optimized or production-ready service. Known failures do not block building the backend/frontend prototype. Do not tune prompts, reindex, or rerun full evaluation merely to improve the saved scores.
+
+BACKEND CONTRACT FOR THE NEXT CHAT
+No backend was implemented in this notebook freeze. Extract the validated functions without rebuilding the corpus. Load MiniLM on CPU and open Chroma ONCE during application startup, not once per request. Keep evaluation reference answers out of retrieval/generation prompts.
+
+Recommended minimal request:
+{
+  "question": "string",
+  "conversation_id": "optional-string",
+  "thinking_enabled": true
+}
+conversation_id may be omitted for a new conversation.
+
+Recommended minimal response:
+{
+  "answer": "string",
+  "thinking": "string",
+  "sources": [
+    {
+      "chunk_id": "string",
+      "title": "string",
+      "page": 1,
+      "url": "string",
+      "similarity": 0.0
+    }
+  ],
+  "conversation_id": "string",
+  "status": "completed"
+}
+
+Reusable notebook contract:
+response = generate_answer(question=question, retrieved_chunks=chunks, think=True)
+response.answer, response.thinking, response.sources, response.retrieval_seconds, response.generation_seconds
+Use think=False to return an empty thinking string. With already retrieved chunks, pass the measured retrieval_seconds; if chunks are omitted, the function retrieves and times them itself. Never concatenate thinking into answer. Do not parse <think> tags when structured fields exist.
+
+Minimal status phases:
+retrieving
+building_context
+thinking
+generating
+completed
+error
+These are coarse application phases, not token-level progress guarantees; current generation is non-streaming. Use thinking only when requested.
+
+For the prototype, history may be an in-memory dictionary keyed by conversation_id. History DISAPPEARS WHEN THE BACKEND RESTARTS. Store conversation messages separately from the immutable Chroma corpus. Generate a conversation ID for a new chat and return it. Preserve errors as errors rather than manufacturing successful answers.
+
+FRONTEND CONTRACT FOR THE LATER CHAT
+No frontend was implemented in this notebook freeze. Required prototype features:
+- ChatGPT-like message list.
+- Conversation history sidebar.
+- New-chat button.
+- Text input.
+- Thinking on/off toggle on the RIGHT side of the input area.
+- Animated status text, such as “Retrieving sources…” and “Generating answer…”.
+- Small gray collapsed thinking preview.
+- Expand/collapse control for full thinking.
+- Source cards containing title, physical PDF page, URL, and similarity.
+- Clear error message when the backend is unavailable.
+Show the thinking UI ONLY when thinking_enabled=true. Keep the final answer and thinking visually separate. Never render thinking as part of the assistant answer. Do not expose judge thinking or evaluation reference answers in the chat UI.
+
+COMMANDS
+Run from the repository root; if starting in its parent directory:
+    cd RAG-Powered-Document-Assistant
+Activate the existing environment:
+    source .venv/bin/activate
+Start Ollama only if it is not already running (use a separate terminal):
+    ollama serve
+Confirm the installed model:
+    ollama list
+    ollama show qwen3:4b
+Default smoke mode (then select Kernel -> Restart and Run All):
+    RAG_EVALUATION_MODE=smoke jupyter notebook notebooks/rag_pipeline.ipynb
+Load the existing evaluation without calling Ollama:
+    RAG_EVALUATION_MODE=load jupyter notebook notebooks/rag_pipeline.ipynb
+Explicit full evaluation (SLOW; writes new evaluation files; archive the saved run first):
+    RAG_EVALUATION_MODE=full jupyter notebook notebooks/rag_pipeline.ipynb
+Inspect Chroma count without embedding or modifying records:
+python - <<'PYCOUNT'
+import chromadb
+with chromadb.PersistentClient(path="backend/data/vector_store") as client:
+    collection = client.get_collection(name="nist_ai_risk_corpus", embedding_function=None)
+    print(collection.count())
+PYCOUNT
+Expected count: 447.
+
+FREEZE BOUNDARY
+The latest full evaluation files are retained unchanged. No full generation evaluation, full judge evaluation, or retries of q04/q08/q11/q12 were requested or started by this freeze task. Only the one-question thinking-disabled smoke generation is authorized. No embedding rebuild, collection recreation, chunk-setting change, prompt optimization, backend implementation, or frontend implementation is included.
+
+SMOKE TEST NOTE
+The initial 256-token thinking-disabled q01 smoke call exhausted its small output cap. That failed smoke attempt is retained under previous_attempts in the smoke report. The smoke cap is 512 tokens; prompts and all historical evaluation files were unchanged. No failed historical evaluation question was retried.

@@ -1,0 +1,189 @@
+BACKEND HANDOFF — NIST AI Risk Assistant
+
+IMPLEMENTATION STATUS
+The FastAPI prototype backend is implemented and verified end to end. It uses only the local
+qwen3:4b Ollama model, the locally cached sentence-transformers/all-MiniLM-L6-v2 model on CPU,
+and the existing persistent Chroma collection. No cloud model or external API is used. Startup
+loads MiniLM with local_files_only=True.
+
+FILES CREATED OR COMPLETED
+- backend/app/main.py
+- backend/app/api/dependencies.py
+- backend/app/api/routes/health.py
+- backend/app/api/routes/query.py
+- backend/app/api/routes/conversations.py
+- backend/app/core/config.py
+- backend/app/schemas/query.py
+- backend/app/schemas/conversation.py
+- backend/app/services/retrieval.py
+- backend/app/services/generation.py
+- backend/app/services/rag.py
+- backend/app/services/chat_store.py
+- backend/app/utils/logging_config.py
+- package __init__.py files under backend/app
+- backend/scripts/smoke_test.py
+- backend/tests/conftest.py
+- backend/tests/test_health.py
+- backend/tests/test_query.py
+- backend/tests/test_conversations.py
+- backend/requirements.txt
+- backend/.env.example
+- reports/backend_handoff.txt
+
+API URL AND ENDPOINTS
+Default base URL: http://127.0.0.1:8000
+
+GET /health
+Returns status (healthy or degraded), Ollama availability, configured Ollama model, embedding
+device, Chroma collection, and collection count. The application may start with a degraded
+health response if Ollama is unavailable or qwen3:4b is not installed.
+
+POST /query
+Request:
+{
+  "question": "What are the four core functions?",
+  "conversation_id": null,
+  "thinking_enabled": false
+}
+
+Response:
+{
+  "conversation_id": "UUID",
+  "answer": "final answer only",
+  "thinking": "",
+  "thinking_enabled": false,
+  "sources": [
+    {
+      "chunk_id": "nist_ai_rmf_1_0-p0006-c000",
+      "document_id": "nist_ai_rmf_1_0",
+      "title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "page": 6,
+      "url": "https://...",
+      "similarity": 0.73,
+      "text_preview": "short retrieved excerpt"
+    }
+  ],
+  "status": "completed",
+  "retrieval_seconds": 0.0,
+  "generation_seconds": 0.0
+}
+
+GET /conversations
+Returns summaries newest-updated first. Each summary contains id, title, timestamps, and
+message_count.
+
+GET /conversations/{conversation_id}
+Returns the summary fields plus ordered user and assistant messages. Assistant messages keep
+answer, thinking, and sources separate.
+
+DELETE /conversations/{conversation_id}
+Returns HTTP 204. Unknown or malformed IDs return HTTP 404.
+
+CONVERSATION-ID RULE
+Omitting conversation_id creates a new UUID conversation. An unknown but well-formed UUID on
+POST /query creates a conversation with that ID. A malformed supplied ID returns HTTP 404.
+GET and DELETE never create a conversation and return 404 for unknown IDs.
+
+STARTUP LOADING
+FastAPI lifespan loads one locally cached SentenceTransformer on CPU, one Chroma
+PersistentClient and collection handle, one Ollama client, one in-memory ChatStore, and one
+process-wide generation lock. Chroma 1.5.x writes internal bookkeeping on read-only opens, so the
+11 MB persisted store is copied to a temporary runtime snapshot before PersistentClient opens it;
+the source store remains immutable and the snapshot is removed on shutdown. Startup validates
+pipeline_config.json, the cosine configuration,
+384-dimensional normalized embeddings, CPU device, and exactly 447 Chroma records. It checks
+Ollama reachability and whether qwen3:4b is installed. Ollama failure degrades health rather than
+preventing startup. MiniLM and Chroma are not reloaded per request.
+
+LOCAL MODEL SETTINGS
+- Ollama host: http://127.0.0.1:11434
+- Model: qwen3:4b
+- Context: 4096
+- Temperature: 0.1
+- Maximum predicted tokens: 1024
+- Streaming: disabled
+- Generation concurrency: one
+- Embedding model: sentence-transformers/all-MiniLM-L6-v2
+- Embedding device: CPU only
+- Embedding dimension: 384
+- Chroma collection: nist_ai_risk_corpus
+- Chroma count: 447
+- Retrieval: normalized query embedding, cosine distance, top_k=4
+
+THINKING BEHAVIOR AND FALLBACK
+thinking_enabled defaults to false. Ollama receives think=false or think=true directly. The
+backend reads response.message.content and response.message.thinking, using mapping access only
+as a compatibility fallback. Thinking is never concatenated into the answer. When thinking is
+disabled, the response thinking field is always an empty string.
+
+If a thinking-enabled call returns non-empty thinking but no final content, generation retries
+exactly once with think=false. It preserves the first attempt's thinking and uses the retry's final
+answer. If no final answer is produced, the API returns HTTP 503 and does not store a successful
+assistant response.
+
+HISTORY BEHAVIOR
+History is a thread-safe in-memory dictionary for this single-process prototype. It has no disk
+persistence, authentication, or cross-worker behavior. Each conversation has UUID, timestamps,
+first-question title, and ordered messages. At most the last two completed user/assistant
+exchanges are included, with bounded text, in generation. Retrieval always embeds only the
+current question. Ambiguous follow-up retrieval is therefore a known limitation. History is lost
+when the backend restarts.
+
+RUN COMMANDS
+From repository root:
+  source .venv/bin/activate
+  ollama serve                         # only if Ollama is not already running
+  ollama list
+  uvicorn backend.app.main:app --reload --port 8000
+
+From backend/:
+  source ../.venv/bin/activate
+  uvicorn app.main:app --reload --port 8000
+
+Install backend dependencies:
+  .venv/bin/pip install -r backend/requirements.txt
+
+Run mocked tests from repository root:
+  .venv/bin/python -m pytest backend/tests -q
+
+Run mocked tests from backend/:
+  ../.venv/bin/python -m pytest tests -q
+
+Run the real smoke test while the API is already running:
+  .venv/bin/python backend/scripts/smoke_test.py
+
+VERIFICATION RESULT
+- Mocked suite: 13 passed.
+- Real smoke: PASS for health, query, non-empty answer, exactly four sources, empty thinking,
+  conversation fetch with user and assistant messages, and deletion.
+- Final health: healthy; Chroma count 447; MiniLM device CPU; Ollama model qwen3:4b.
+- The notebook evaluation was not rerun. PDFs, notebook, evaluation artifacts, and Chroma records
+  were not intentionally modified by backend implementation.
+
+ERROR CONTRACT
+- 404: conversation not found or malformed supplied conversation UUID
+- 422: invalid request, including blank/short/overlong question
+- 503: Ollama/model unavailable or generation failed
+- 500: unexpected internal error
+Errors do not expose stack traces, prompts, full chunks, history, or thinking.
+
+EXACT FRONTEND CONTRACT
+- POST /query with question, optional conversation_id, and thinking_enabled.
+- Treat the normal HTTP response as atomic; there is no WebSocket, SSE, or token streaming.
+- Display “Retrieving sources…” and “Generating answer…” locally while waiting.
+- Thinking is returned only after the request completes because this backend does not stream.
+- Show thinking only when thinking_enabled=true and keep it collapsed by default.
+- Display answer and thinking separately; never render thinking as part of the answer.
+- Render source title, physical PDF page, URL, similarity, chunk ID, and short preview from sources.
+- Use GET /conversations for the sidebar, GET /conversations/{id} to open a thread, and DELETE
+  /conversations/{id} to remove one.
+- Do not expect history to survive a backend restart.
+
+KNOWN PROTOTYPE LIMITATIONS
+- Conversation data is process-local and disappears on restart; multiple workers are unsupported.
+- Generation is intentionally serialized and can take several minutes on the target machine.
+- There is no streaming, authentication, rate limiting, durable persistence, or user isolation.
+- Retrieval uses only the current question, so ambiguous follow-ups may retrieve weak context.
+- Retrieval quality and citation formatting retain the limitations recorded in notebook_handoff.txt.
+- Ollama availability is checked at startup; a later outage causes generation to return HTTP 503.
+- The cached MiniLM model must already exist locally because runtime loading is offline-only.

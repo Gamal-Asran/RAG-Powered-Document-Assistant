@@ -1,0 +1,28 @@
+{
+  "mode": "smoke",
+  "timestamp_utc": "2026-09-16T18:06:59.641996+00:00",
+  "status": "FAIL",
+  "generation_calls": 1,
+  "judge_calls": 0,
+  "thinking_enabled_calls": 0,
+  "full_evaluation_rerun": false,
+  "checks": {
+    "evaluation_records": 12,
+    "historical_failures_preserved": [
+      "q04",
+      "q08",
+      "q11",
+      "q12"
+    ],
+    "saved_separate_thinking": true,
+    "retrieval": true
+  },
+  "error": "RuntimeError: Generation produced empty or truncated final content; no automatic retry is performed.",
+  "retrieved_chunk_ids": [
+    "nist_ai_rmf_1_0-p0008-c000",
+    "nist_ai_rmf_1_0-p0025-c000",
+    "nist_ai_rmf_playbook-p0004-c000",
+    "nist_genai_profile-p0060-c002"
+  ],
+  "duration_seconds": 73.8011468669938
+}
