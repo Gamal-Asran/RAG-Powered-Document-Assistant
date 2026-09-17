@@ -20,6 +20,10 @@ __pycache__/
 .coverage.*
 htmlcov/
 
+# Test directories at any level
+tests/
+test/
+
 # Packaging and build output
 build/
 dist/
