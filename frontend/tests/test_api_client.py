@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import httpx
 import pytest
 
 from frontend.api_client import (
     BackendClient,
+    BackendGenerationError,
     BackendTimeoutError,
     BackendUnavailableError,
     BackendValidationError,
@@ -161,11 +163,17 @@ def test_backend_connection_failure_has_specific_exception() -> None:
 
 
 def test_query_timeout_has_specific_exception() -> None:
+    calls = 0
+
     def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
         raise httpx.ReadTimeout("too slow", request=request)
 
     with pytest.raises(BackendTimeoutError):
         client_for(handler).query("What are the functions?", None, False)
+
+    assert calls == 1
 
 
 def test_invalid_backend_response_is_rejected() -> None:
@@ -176,3 +184,94 @@ def test_invalid_backend_response_is_rejected() -> None:
         client_for(lambda request: httpx.Response(200, json=invalid)).query(
             "What are the functions?", None, False
         )
+
+
+def test_non_json_query_response_is_rejected_without_raw_decode_error() -> None:
+    client = client_for(
+        lambda request: httpx.Response(200, text="not an API response")
+    )
+
+    with pytest.raises(BackendValidationError, match="invalid response"):
+        client.query("What are the functions?", None, False)
+
+
+def ndjson_response(events: list[dict]) -> httpx.Response:
+    body = "".join(json.dumps(event) + "\n" for event in events)
+    return httpx.Response(200, text=body, headers={"content-type": "application/x-ndjson"})
+
+
+def valid_stream_events() -> list[dict]:
+    return [
+        {"type": "status", "phase": "searching", "message": "Searching the document collection..."},
+        {"type": "sources", "sources": [SOURCE]},
+        {"type": "thinking_delta", "delta": "Reviewing evidence."},
+        {"type": "answer_delta", "delta": "The functions are GOVERN, MAP, MEASURE, and MANAGE."},
+        {
+            "type": "completed",
+            "conversation_id": QUERY_RESPONSE["conversation_id"],
+            "thinking_enabled": True,
+            "retrieval_seconds": 0.12,
+            "generation_seconds": 18.4,
+            "fallback_used": False,
+        },
+    ]
+
+
+def test_query_stream_parses_ordered_ndjson_events() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/query/stream"
+        return ndjson_response(valid_stream_events())
+
+    events = list(client_for(handler).query_stream("What are the functions?", None, True))
+
+    assert [event.type for event in events] == [
+        "status",
+        "sources",
+        "thinking_delta",
+        "answer_delta",
+        "completed",
+    ]
+
+
+def test_query_stream_rejects_malformed_event() -> None:
+    response = httpx.Response(200, text='{"type":"answer_delta","delta":}\n')
+
+    with pytest.raises(BackendValidationError, match="malformed stream event"):
+        list(client_for(lambda request: response).query_stream("Question?", None, False))
+
+
+def test_query_stream_rejects_events_out_of_order() -> None:
+    events = [
+        {"type": "answer_delta", "delta": "Too early"},
+        *valid_stream_events(),
+    ]
+
+    with pytest.raises(BackendValidationError, match="out of order"):
+        list(
+            client_for(lambda request: ndjson_response(events)).query_stream(
+                "Question?", None, True
+            )
+        )
+
+
+def test_query_stream_maps_safe_error_event() -> None:
+    response = ndjson_response(
+        [{"type": "error", "code": "generation_failed", "message": "Safe message."}]
+    )
+
+    with pytest.raises(BackendGenerationError, match="Safe message."):
+        list(client_for(lambda request: response).query_stream("Question?", None, True))
+
+
+def test_query_stream_connection_failure_is_not_retried() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raise httpx.ConnectError("connection refused", request=request)
+
+    with pytest.raises(BackendUnavailableError, match="interrupted"):
+        list(client_for(handler).query_stream("Question?", None, False))
+
+    assert calls == 1

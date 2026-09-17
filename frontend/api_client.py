@@ -2,15 +2,37 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
 from pydantic import ValidationError
 
 try:  # Supports both `streamlit run frontend/app.py` and package imports in tests.
-    from .models import CONVERSATION_LIST_ADAPTER, Conversation, ConversationSummary, HealthResponse, QueryResponse
+    from .models import (
+        CONVERSATION_LIST_ADAPTER,
+        STREAM_EVENT_ADAPTER,
+        CompletedEvent,
+        Conversation,
+        ConversationSummary,
+        ErrorEvent,
+        HealthResponse,
+        QueryResponse,
+        StreamEvent,
+    )
 except ImportError:  # pragma: no cover - exercised by the Streamlit script entry point
-    from models import CONVERSATION_LIST_ADAPTER, Conversation, ConversationSummary, HealthResponse, QueryResponse
+    from models import (
+        CONVERSATION_LIST_ADAPTER,
+        STREAM_EVENT_ADAPTER,
+        CompletedEvent,
+        Conversation,
+        ConversationSummary,
+        ErrorEvent,
+        HealthResponse,
+        QueryResponse,
+        StreamEvent,
+    )
 
 
 class FrontendAPIError(RuntimeError):
@@ -126,6 +148,74 @@ class BackendClient:
         )
         self._raise_for_status(response, query=True)
         return self._parse(QueryResponse, response)
+
+    def query_stream(
+        self,
+        question: str,
+        conversation_id: str | None,
+        thinking_enabled: bool,
+    ) -> Iterator[StreamEvent]:
+        payload = {
+            "question": question,
+            "conversation_id": conversation_id,
+            "thinking_enabled": thinking_enabled,
+        }
+        timeout = httpx.Timeout(
+            connect=self.short_timeout,
+            read=None,
+            write=self.short_timeout,
+            pool=self.short_timeout,
+        )
+        sources_seen = False
+        answer_seen = False
+        completed_seen = False
+        try:
+            with httpx.Client(
+                base_url=self.base_url,
+                timeout=timeout,
+                transport=self.transport,
+            ) as client:
+                with client.stream("POST", "/query/stream", json=payload) as response:
+                    if response.status_code >= 400:
+                        response.read()
+                        self._raise_for_status(response, query=True)
+                    for line in response.iter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            event = STREAM_EVENT_ADAPTER.validate_python(json.loads(line))
+                        except (json.JSONDecodeError, ValidationError) as exc:
+                            raise BackendValidationError("backend returned a malformed stream event") from exc
+                        if completed_seen:
+                            raise BackendValidationError("backend returned an event after completion")
+                        if isinstance(event, ErrorEvent):
+                            raise BackendGenerationError(event.message)
+                        if event.type == "sources":
+                            if sources_seen or answer_seen:
+                                raise BackendValidationError("backend returned stream events out of order")
+                            sources_seen = True
+                        elif event.type == "thinking_delta":
+                            if not sources_seen or answer_seen:
+                                raise BackendValidationError("backend returned stream events out of order")
+                        elif event.type == "answer_delta":
+                            if not sources_seen:
+                                raise BackendValidationError("backend returned stream events out of order")
+                            answer_seen = True
+                        elif isinstance(event, CompletedEvent):
+                            if not sources_seen or not answer_seen:
+                                raise BackendValidationError("backend completed an incomplete stream")
+                            completed_seen = True
+                        yield event
+        except BackendGenerationError:
+            raise
+        except BackendValidationError:
+            raise
+        except httpx.TimeoutException as exc:
+            raise BackendTimeoutError("backend stream timed out") from exc
+        except httpx.RequestError as exc:
+            raise BackendUnavailableError("backend stream was interrupted") from exc
+        if not completed_seen:
+            raise BackendValidationError("backend stream ended before completion")
 
     def list_conversations(self) -> list[ConversationSummary]:
         response = self._request("GET", "/conversations", timeout=self.short_timeout)

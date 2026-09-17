@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
@@ -81,6 +81,49 @@ class Conversation(ConversationSummary):
 
 
 CONVERSATION_LIST_ADAPTER = TypeAdapter(list[ConversationSummary])
+
+
+class StatusEvent(APIModel):
+    type: Literal["status"]
+    phase: Literal["searching", "context", "model", "thinking", "answer", "citations", "finalizing"]
+    message: str
+
+
+class ThinkingDeltaEvent(APIModel):
+    type: Literal["thinking_delta"]
+    delta: str
+
+
+class AnswerDeltaEvent(APIModel):
+    type: Literal["answer_delta"]
+    delta: str
+
+
+class SourcesEvent(APIModel):
+    type: Literal["sources"]
+    sources: list[Source]
+
+
+class CompletedEvent(APIModel):
+    type: Literal["completed"]
+    conversation_id: str
+    thinking_enabled: bool
+    retrieval_seconds: float = Field(ge=0)
+    generation_seconds: float = Field(ge=0)
+    fallback_used: bool = False
+
+
+class ErrorEvent(APIModel):
+    type: Literal["error"]
+    code: str
+    message: str
+
+
+StreamEvent = Annotated[
+    StatusEvent | ThinkingDeltaEvent | AnswerDeltaEvent | SourcesEvent | CompletedEvent | ErrorEvent,
+    Field(discriminator="type"),
+]
+STREAM_EVENT_ADAPTER = TypeAdapter(StreamEvent)
 
 
 def prepare_sources(sources: list[Source]) -> list[Source]:

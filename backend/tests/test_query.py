@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import json
 
 from backend.app.main import create_app
 from backend.tests.conftest import build_runtime
@@ -66,3 +67,45 @@ def test_source_metadata_contract(client):
     source = client.post("/query", json={"question": QUESTION}).json()["sources"][0]
     assert {"chunk_id", "document_id", "title", "page", "url", "similarity", "text_preview"} <= source.keys()
     assert source["chunk_id"] and source["title"] and source["url"]
+
+
+def stream_events(client, payload):
+    with client.stream("POST", "/query/stream", json=payload) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/x-ndjson")
+        return [json.loads(line) for line in response.iter_lines() if line]
+
+
+def test_stream_query_orders_sources_thinking_answer_and_completion(client):
+    events = stream_events(client, {"question": QUESTION, "thinking_enabled": True})
+    event_types = [event["type"] for event in events]
+
+    assert event_types[0] == "status"
+    assert event_types.index("sources") < event_types.index("thinking_delta")
+    assert event_types.index("thinking_delta") < event_types.index("answer_delta")
+    assert event_types[-1] == "completed"
+    assert "".join(event["delta"] for event in events if event["type"] == "answer_delta") == (
+        "The four functions are GOVERN, MAP, MEASURE, and MANAGE."
+    )
+
+
+def test_stream_query_disabled_never_emits_thinking(client):
+    events = stream_events(client, {"question": QUESTION, "thinking_enabled": False})
+
+    assert not [event for event in events if event["type"] == "thinking_delta"]
+    assert events[-1]["type"] == "completed"
+    conversation = client.get(f"/conversations/{events[-1]['conversation_id']}").json()
+    assert conversation["messages"][-1]["thinking"] == ""
+
+
+def test_stream_query_returns_safe_error_event(client):
+    runtime = build_runtime(generation_fails=True)
+    app = create_app(settings=runtime.settings, runtime_loader=lambda _: runtime)
+    with TestClient(app) as test_client:
+        events = stream_events(test_client, {"question": QUESTION, "thinking_enabled": True})
+
+    assert events[-1] == {
+        "type": "error",
+        "code": "generation_failed",
+        "message": "The local model could not complete the response. Try again without thinking mode.",
+    }

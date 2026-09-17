@@ -49,7 +49,8 @@ def render_thinking(message: Message) -> None:
     if not thinking:
         st.markdown('<div class="thinking-unavailable">Thinking trace unavailable</div>', unsafe_allow_html=True)
         return
-    preview = thinking[:200].rstrip() + ("…" if len(thinking) > 200 else "")
+    first_paragraph = thinking.split("\n\n", 1)[0].strip()
+    preview = first_paragraph[:320] + ("…" if len(first_paragraph) > 320 else "")
     st.markdown(
         '<div class="thinking-preview">'
         '<div class="thinking-label"><span aria-hidden="true">▸</span> Thinking</div>'
@@ -57,11 +58,8 @@ def render_thinking(message: Message) -> None:
         '</div>',
         unsafe_allow_html=True,
     )
-    with st.expander("Show full thinking", expanded=False):
-        st.markdown(
-            f'<div class="thinking-full">{html.escape(thinking).replace(chr(10), "<br>")}</div>',
-            unsafe_allow_html=True,
-        )
+    with st.expander("View full thinking", expanded=False):
+        st.markdown(thinking)
 
 
 def render_message(message: Message) -> None:

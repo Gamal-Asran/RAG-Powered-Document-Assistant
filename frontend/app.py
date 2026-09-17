@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import html
 import os
 from pathlib import Path
+from time import monotonic
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -18,9 +20,18 @@ try:  # Support execution from the repository root and from frontend/.
         BackendValidationError,
         ConversationNotFoundError,
     )
-    from .components import render_message
-    from .models import Message
+    from .components import render_message, render_sources
+    from .models import (
+        AnswerDeltaEvent,
+        CompletedEvent,
+        Message,
+        SourcesEvent,
+        StatusEvent,
+        StreamEvent,
+        ThinkingDeltaEvent,
+    )
     from .styles import CSS
+    from .waiting import WaitingStatus, pump_stream
 except ImportError:  # pragma: no cover - Streamlit executes this file as a script
     from api_client import (
         BackendClient,
@@ -31,9 +42,18 @@ except ImportError:  # pragma: no cover - Streamlit executes this file as a scri
         BackendValidationError,
         ConversationNotFoundError,
     )
-    from components import render_message
-    from models import Message
+    from components import render_message, render_sources
+    from models import (
+        AnswerDeltaEvent,
+        CompletedEvent,
+        Message,
+        SourcesEvent,
+        StatusEvent,
+        StreamEvent,
+        ThinkingDeltaEvent,
+    )
     from styles import CSS
+    from waiting import WaitingStatus, pump_stream
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent
@@ -65,13 +85,20 @@ def initialize_state() -> None:
         "last_error": None,
         "question_draft": "",
         "clear_question_input": False,
+        "restore_question_input": None,
         "pending_delete_id": None,
         "queued_question": None,
+        "pending_question": None,
+        "pending_thinking": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
-    if st.session_state.clear_question_input:
+    if st.session_state.restore_question_input is not None:
+        st.session_state.question_draft = st.session_state.restore_question_input
+        st.session_state.restore_question_input = None
+        st.session_state.clear_question_input = False
+    elif st.session_state.clear_question_input:
         st.session_state.question_draft = ""
         st.session_state.clear_question_input = False
 
@@ -132,6 +159,13 @@ def new_chat() -> None:
     st.session_state.queued_question = None
 
 
+def working_markup(status: WaitingStatus) -> str:
+    return (
+        '<div class="working-title"><span class="working-dot" aria-hidden="true"></span>'
+        f"{status.message} <span class=\"working-elapsed\">· {status.elapsed_text}</span></div>"
+    )
+
+
 def choose_example(question: str) -> None:
     st.session_state.queued_question = question
 
@@ -145,10 +179,10 @@ def friendly_query_error(error: Exception) -> str:
     if isinstance(error, ConversationNotFoundError):
         reset_for_missing_conversation()
         return "This conversation is no longer available because backend memory was reset."
-    if isinstance(error, BackendGenerationError) and (
-        "ollama" in str(error).lower() or "qwen3:4b" in str(error).lower()
-    ):
-        return "Ollama or qwen3:4b is unavailable. Check the backend health status."
+    if isinstance(error, BackendGenerationError):
+        if "ollama" in str(error).lower() or "qwen3:4b" in str(error).lower():
+            return "Ollama or qwen3:4b is unavailable. Check the backend health status."
+        return "The local model could not finish the response. Try again without thinking mode."
     return "The request failed. Check the backend terminal for details."
 
 
@@ -306,6 +340,32 @@ else:
             render_message(chat_message)
 
 
+pending_status = None
+pending_thinking_preview = None
+pending_thinking_full = None
+pending_answer = None
+pending_sources = None
+pending_timing = None
+if st.session_state.request_in_progress and st.session_state.pending_question:
+    with st.container(key="pending_turn"):
+        with st.chat_message("user"):
+            st.markdown(st.session_state.pending_question)
+        with st.chat_message("assistant"):
+            st.markdown(
+                '<div class="assistant-label"><span aria-hidden="true">◆</span> Assistant</div>',
+                unsafe_allow_html=True,
+            )
+            with st.container(key="working_state"):
+                pending_status = st.empty()
+            if st.session_state.pending_thinking:
+                pending_thinking_preview = st.empty()
+                with st.expander("View full thinking", expanded=False):
+                    pending_thinking_full = st.empty()
+            pending_answer = st.empty()
+            pending_sources = st.empty()
+            pending_timing = st.empty()
+
+
 with st.container(key="composer_shell"):
     composer_input, composer_toggle = st.columns([8, 1.6], vertical_alignment="center")
     with composer_input:
@@ -337,35 +397,103 @@ if question_to_submit and not st.session_state.request_in_progress:
         st.rerun()
     st.session_state.request_in_progress = True
     st.session_state.last_error = None
-    requested_thinking = st.session_state.thinking_enabled
+    st.session_state.pending_question = clean_question
+    st.session_state.pending_thinking = st.session_state.thinking_enabled
+    st.rerun()
+
+if st.session_state.request_in_progress and st.session_state.pending_question:
+    clean_question = st.session_state.pending_question
+    requested_thinking = st.session_state.pending_thinking
+    active_conversation_id = st.session_state.active_conversation_id
     try:
-        with st.container(key="pending_turn"):
-            # Keep the submitted turn visible while the atomic backend call runs.
-            with st.chat_message("user"):
-                st.markdown(clean_question)
-            with st.container(key="working_state"):
-                st.markdown(
-                    '<div class="working-title"><span class="working-dot">●</span>'
-                    'Working with the local model</div>'
-                    '<div class="working-copy">Retrieving relevant NIST passages and '
-                    'generating an answer…</div>',
-                    unsafe_allow_html=True,
-                )
-            response = client.query(
-                clean_question,
-                st.session_state.active_conversation_id,
-                requested_thinking,
+        assert pending_status is not None and pending_answer is not None
+        assert pending_sources is not None and pending_timing is not None
+        stream_state = {
+            "status": "Working locally...",
+            "thinking": "",
+            "answer": "",
+            "completed": None,
+            "last_render": 0.0,
+            "elapsed": 0,
+        }
+
+        def render_status(elapsed: WaitingStatus) -> None:
+            stream_state["elapsed"] = elapsed.elapsed_seconds
+            pending_status.markdown(
+                working_markup(
+                    WaitingStatus(str(stream_state["status"]), int(stream_state["elapsed"]))
+                ),
+                unsafe_allow_html=True,
             )
 
-        st.session_state.active_conversation_id = response.conversation_id
-        conversation = client.get_conversation(response.conversation_id)
+        def render_deltas(*, force: bool = False) -> None:
+            now = monotonic()
+            if not force and now - float(stream_state["last_render"]) < 0.08:
+                return
+            thinking_text = str(stream_state["thinking"])
+            answer_text = str(stream_state["answer"])
+            if pending_thinking_preview is not None and pending_thinking_full is not None and thinking_text:
+                first_paragraph = thinking_text.split("\n\n", 1)[0].strip()
+                preview = first_paragraph[:320] + ("…" if len(first_paragraph) > 320 else "")
+                pending_thinking_preview.markdown(
+                    '<div class="thinking-preview">'
+                    '<div class="thinking-label"><span aria-hidden="true">▸</span> Thinking</div>'
+                    f'<div class="thinking-copy">{html.escape(preview)}</div></div>',
+                    unsafe_allow_html=True,
+                )
+                pending_thinking_full.markdown(thinking_text)
+            if answer_text:
+                pending_answer.markdown(answer_text)
+            stream_state["last_render"] = now
+
+        def handle_event(event: StreamEvent) -> None:
+            if isinstance(event, StatusEvent):
+                stream_state["status"] = event.message
+                render_status(
+                    WaitingStatus(event.message, int(stream_state["elapsed"]))
+                )
+            elif isinstance(event, ThinkingDeltaEvent):
+                stream_state["thinking"] = str(stream_state["thinking"]) + event.delta
+                render_deltas()
+            elif isinstance(event, AnswerDeltaEvent):
+                stream_state["answer"] = str(stream_state["answer"]) + event.delta
+                render_deltas()
+            elif isinstance(event, SourcesEvent):
+                with pending_sources.container():
+                    render_sources(event.sources)
+            elif isinstance(event, CompletedEvent):
+                stream_state["completed"] = event
+                stream_state["thinking"] = str(stream_state["thinking"]).strip()
+                stream_state["answer"] = str(stream_state["answer"]).strip()
+                render_deltas(force=True)
+                pending_timing.caption(
+                    f"Retrieved in {event.retrieval_seconds:.2f}s · "
+                    f"Generated in {event.generation_seconds:.2f}s"
+                )
+
+        pump_stream(
+            lambda: client.query_stream(
+                clean_question,
+                active_conversation_id,
+                requested_thinking,
+            ),
+            handle_event,
+            render_status,
+        )
+        completed = stream_state["completed"]
+        if completed is None:
+            raise BackendValidationError("backend stream ended before completion")
+        assert isinstance(completed, CompletedEvent)
+
+        st.session_state.active_conversation_id = completed.conversation_id
+        conversation = client.get_conversation(completed.conversation_id)
         refreshed_messages = [item.for_display() for item in conversation.messages]
         if refreshed_messages and refreshed_messages[-1].role == "assistant":
             assistant = refreshed_messages[-1]
             refreshed_messages[-1] = assistant.model_copy(
                 update={
-                    "retrieval_seconds": response.retrieval_seconds,
-                    "generation_seconds": response.generation_seconds,
+                    "retrieval_seconds": completed.retrieval_seconds,
+                    "generation_seconds": completed.generation_seconds,
                     "thinking_requested": requested_thinking,
                 }
             )
@@ -381,6 +509,9 @@ if question_to_submit and not st.session_state.request_in_progress:
         BackendRequestError,
     ) as error:
         st.session_state.last_error = friendly_query_error(error)
+        st.session_state.restore_question_input = clean_question
     finally:
         st.session_state.request_in_progress = False
+        st.session_state.pending_question = None
+        st.session_state.pending_thinking = False
     st.rerun()

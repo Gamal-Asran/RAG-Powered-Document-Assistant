@@ -151,9 +151,10 @@ CSS = """
   .working-title { color: var(--text-secondary); font-size: .84rem; font-weight: 600; }
   .working-dot {
     animation: local-pulse 1.4s ease-in-out infinite; color: var(--accent);
-    display: inline-block; margin-right: .35rem;
+    background: currentColor; border-radius: 50%; display: inline-block; height: .48rem;
+    margin-right: .5rem; width: .48rem;
   }
-  .working-copy { color: var(--text-muted); font-size: .76rem; margin: .15rem 0 0 1rem; }
+  .working-elapsed { color: var(--text-muted); font-variant-numeric: tabular-nums; font-weight: 500; }
   @keyframes local-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
   /* Sidebar */
