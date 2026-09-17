@@ -30,7 +30,7 @@ try:  # Support execution from the repository root and from frontend/.
         StreamEvent,
         ThinkingDeltaEvent,
     )
-    from .styles import CSS
+    from .styles import theme_css
     from .waiting import WaitingStatus, pump_stream
 except ImportError:  # pragma: no cover - Streamlit executes this file as a script
     from api_client import (
@@ -52,7 +52,7 @@ except ImportError:  # pragma: no cover - Streamlit executes this file as a scri
         StreamEvent,
         ThinkingDeltaEvent,
     )
-    from styles import CSS
+    from styles import theme_css
     from waiting import WaitingStatus, pump_stream
 
 
@@ -64,7 +64,6 @@ st.set_page_config(
     page_icon="🛡️",
     layout="wide",
 )
-st.markdown(CSS, unsafe_allow_html=True)
 
 EXAMPLE_QUESTIONS = (
     ("Framework", "What are the four core AI RMF functions?"),
@@ -90,6 +89,7 @@ def initialize_state() -> None:
         "queued_question": None,
         "pending_question": None,
         "pending_thinking": False,
+        "appearance": "Light",
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -274,6 +274,7 @@ with st.sidebar:
 
     health = st.session_state.get("health")
     with st.container(key="sidebar_footer"):
+        st.radio("Appearance", ("Light", "Dark"), key="appearance", horizontal=True)
         if not st.session_state.backend_available:
             health_markup = '<span class="health-dot offline">●</span>Backend offline'
         elif health and health.status == "healthy":
@@ -286,6 +287,7 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+st.markdown(theme_css(st.session_state.appearance), unsafe_allow_html=True)
 
 with st.container(key="app_header"):
     st.markdown(
@@ -309,6 +311,7 @@ if not st.session_state.messages:
     with st.container(key="empty_state"):
         st.markdown(
             '<div class="empty-copy">'
+            '<div class="eyebrow">YOUR LOCAL RESEARCH COMPANION</div>'
             '<div class="empty-title">Ask the NIST AI Risk corpus</div>'
             '<div class="empty-description">Explore the AI Risk Management Framework, the '
             'Generative AI Profile, and practical Playbook guidance.</div>'
