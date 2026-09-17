@@ -2,7 +2,7 @@
 
 A local RAG chat application that answers questions about NIST AI risk guidance using your own language model. Ask a question, follow the streamed answer, and check the supporting document pages.
 
-![NIST AI Risk Assistant chat interface](screenshots/chat.png)
+![NIST AI Risk Assistant chat interface](screenshots/Chat.png)
 
 ## 1. What data does it use?
 
