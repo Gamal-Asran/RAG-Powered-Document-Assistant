@@ -24,7 +24,7 @@ PROJECT STATE
 MODIFICATION HISTORY
 1. Environment and dependency checks established the project environment and package versions.
 2. Manifest/checksum validation checked source identities and PDF page counts.
-3. PDF page extraction retained physical one-based page provenance with PyPDF.
+3. PDF page extraction retained z physical one-based page provenance with PyPDF.
 4. Text-quality validation exposed sparse pages and extraction warnings.
 5. Header/footer cleaning conservatively removed repeated margins while preserving original text.
 6. Page-bounded 450/80 chunking established deterministic IDs and token offsets.
